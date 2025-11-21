@@ -29,6 +29,7 @@ db.connect((err)=>{
 //Criar o App
  
 var app=express();
+app.use(express.json());
 app.use(bodyParser.json());
  
 //Rota inicial
@@ -39,23 +40,36 @@ app.get('/',(req, res)=>{
  
 //Inserir os Dados (post)
  
-app.post('/chave',(req, res)=>{
-    var {valor_chave, numeroDenuncias_chave}=req.body;
-    if(!valor_chave || !numeroDenuncias_chave){
-        return res.status(400).json({erro:'Todas as informações são obrigatórias'});
+app.post('/chave', (req, res) => {    
+    const { valor_chave, numeroDenuncias_chave } = req.body;
+
+    if (typeof valor_chave !== 'string' || valor_chave.trim().length === 0 || numeroDenuncias_chave === undefined) {
+        console.error("Validação falhou para POST /chave. Recebido:", req.body);
+        return res.status(400).json({ erro: 'O valor da chave PIX e o contador de denúncias (numeroDenuncias_chave: 0) são obrigatórios.' });
     }
-    var sql='INSERT INTO chavepix(valor_chave, numeroDenuncias_chave)VALUES(?,?)';
-    db.query(sql,[valor_chave, numeroDenuncias_chave],(err, result)=>{
-        if(err){
-            console.error('Erro ao Inserir:',err);
-            return res.status(500).json({erro:'Erro ao inserir no banco de dados'});
+    const numDenuncias = Number(numeroDenuncias_chave);
+    if (isNaN(numDenuncias) || numDenuncias < 0) {
+        return res.status(400).json({ erro: 'O contador de denúncias deve ser um número inteiro não negativo.' });
+    }
+    
+    var sql = 'INSERT INTO chavepix (valor_chave, numeroDenuncias_chave) VALUES (?, ?)';
+    
+    db.query(sql, [valor_chave.trim(), numDenuncias], (err, result) => {
+        if (err) {
+            console.error('Erro ao Inserir Chave:', err);
+            if (err.code === 'ER_DUP_ENTRY') {
+                 return res.status(409).json({ erro: 'Chave PIX já existe no sistema.' });
+            }
+            return res.status(500).json({ erro: 'Erro interno ao salvar chave.' });
         }
-        res.status(201).json({
-           mensagem:'Chave Inserido com sucesso',id: result.insertId
+        res.status(201).json({ 
+            mensagem: 'Chave criada com sucesso', 
+            id: result.insertId,
+            id_chave: result.insertId,
+            valor_chave: valor_chave.trim()
         });
     });
-}
-);
+});
  
 //Listar todos os usuarios(Get)
  
@@ -69,9 +83,9 @@ app.get('/chave',(req, res)=>{
 });
 // Listar usuário pelo ID
  
-app.get('/chave/:id_chave',(req, res)=>{
-    var {id_chave}=req.params;
-    db.query('SELECT * FROM chavepix WHERE id_chave=?',[id_chave],(err, results1)=>
+app.get('/chave/:valor_chave',(req, res)=>{
+    var {valor_chave}=req.params;
+    db.query('SELECT * FROM chavepix WHERE valor_chave=?',[valor_chave],(err, results1)=>
     {
         if(err){
             return res.status(500).json({erro:'Erro ao Buscar chave'});
