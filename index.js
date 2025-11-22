@@ -2,6 +2,7 @@
 const express = require('express');
 const bodyParser=require('body-parser');
 const mysql = require('mysql2');
+const cors = require('cors');
  
 //criar a conexão com o banco de dados
  
@@ -27,10 +28,11 @@ db.connect((err)=>{
 );
  
 //Criar o App
- 
+
 var app=express();
 app.use(express.json());
 app.use(bodyParser.json());
+app.use(cors())
  
 //Rota inicial
  
@@ -97,6 +99,29 @@ app.get('/chave/:valor_chave',(req, res)=>{
     }
 );
 });
+
+app.get('/chave/contador/chaves',(req,res)=>{
+    var sql='SELECT COUNT(*) FROM chavepix';
+    db.query(sql,(err, results)=>{
+        if(err){
+            console.error('Erro ao buscar as chaves:',err);
+            return res.status(500).json({erro:'Erro ao buscar no banco de dados'});
+        }
+        res.status(200).json(results);
+    });
+});
+
+app.get('/chave/contador/denuncia',(req,res)=>{
+    var sql='SELECT valor_chave FROM chavepix ORDER BY numeroDenuncias_chave DESC LIMIT 1;';
+    db.query(sql,(err, results)=>{
+        if(err){
+            console.error('Erro ao buscar as chaves:',err);
+            return res.status(500).json({erro:'Erro ao buscar no banco de dados'});
+        }
+        res.status(200).json(results);
+    });
+});
+
  
 app.put('/chave/:id_chave',(req, res)=>{
     var {id_chave}=req.params;
